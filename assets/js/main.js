@@ -729,6 +729,17 @@
       if (e.key === 'ArrowLeft')  { e.preventDefault(); zeigeBild(galState.index - 1); }
     });
     dlg.addEventListener('close', function () { dlg.innerHTML = ''; });
+
+    // Auf dem Telefon füllt die Ansicht den ganzen Bildschirm und wird
+    // deshalb wie eine eigene Seite erwartet: Die Zurück-Geste schließt sie,
+    // statt die Website zu verlassen.
+    dlg.addEventListener('objdlg:open', function () {
+      if (history.state && history.state.objdlg) return;
+      history.pushState({ objdlg: true }, '');
+    });
+    window.addEventListener('popstate', function () {
+      if (dlg.open) dlg.close();
+    });
     return dlg;
   }
 
@@ -876,6 +887,7 @@
       '</div>';
 
     d.showModal();
+    d.dispatchEvent(new Event('objdlg:open'));
     $('.objdlg__scroll', d).scrollTop = 0;
     track('reference_click', { objekt: o.slug });
   }

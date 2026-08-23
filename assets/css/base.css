@@ -112,7 +112,11 @@ body {
   font-feature-settings: 'kern' 1, 'liga' 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;      /* Sicherheitsnetz gegen horizontales Overflow */
+  /* clip statt hidden: „hidden" macht den Body selbst zum Scroll-Container.
+     Dann greifen window.scrollTo, Ankersprünge und scrollIntoView nicht mehr
+     auf das Fenster — auf dem Telefon wirkt das wie eine hakende Seite.
+     „clip" beschneidet genauso, erzeugt aber keinen Scroll-Container. */
+  overflow-x: clip;
 }
 
 img, picture, video, svg { max-width: 100%; display: block; }

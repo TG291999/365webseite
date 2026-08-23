@@ -584,6 +584,30 @@
 .tstm__name span { display: block; font-weight: 400; font-size: var(--t-micro); color: var(--c-ink-3); }
 .tstm__src { display: inline-flex; align-items: center; gap: 0.4rem; font-size: var(--t-micro); color: var(--c-ink-3); }
 
+/* Auf dem Telefon kein Laufband, sondern ein Wischkarussell.
+   Ein durchlaufendes Band hat keine Halteposition: Bleibt es stehen —
+   durch Antippen, Fokus oder die Pause-Taste — stehen zwei halbe Karten
+   im Bild und nichts davon ist lesbar. Mit Snap-Punkten liegt immer
+   genau eine Bewertung im Ausschnitt. */
+@media (max-width: 760px) {
+  .tstm-band__track {
+    animation: none;
+    width: auto;
+    scroll-snap-type: none;
+  }
+  .tstm-band__viewport {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -webkit-mask-image: none; mask-image: none;
+  }
+  .tstm-band__viewport::-webkit-scrollbar { display: none; }
+  .tstm { flex-basis: 86vw; scroll-snap-align: center; }
+  .tstm--dup { display: none; }        /* Kopien braucht nur das Laufband */
+  .tstm-stop { display: none; }        /* nichts läuft, nichts anzuhalten */
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tstm-band__track { animation: none; }
   .tstm-band__viewport {
@@ -1414,6 +1438,42 @@
 .objgal__thumbs button[aria-current='true'] { opacity: 1; outline-color: var(--c-orange); }
 .objgal__thumbs button:hover { opacity: 0.9; }
 .objgal__thumbs img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---- Objektansicht auf dem Telefon ------------------------------------
+   Als geschrumpftes Fenster mit Rand ringsum wirkt der Dialog auf dem
+   Handy wie ein Fehler. Deshalb hier ganzflächig wie eine eigene Seite:
+   volle Breite, volle Höhe, keine Ecken, Schließen fest am Bildrand. */
+@media (max-width: 760px) {
+  .objdlg {
+    width: 100%; max-width: 100%;
+    height: 100%; max-height: 100%;
+    margin: 0; border-radius: 0;
+  }
+  .objdlg__scroll { max-height: 100%; height: 100%; }
+  .objdlg__close {
+    position: fixed; right: 0.75rem; top: 0.75rem;
+    width: 42px; height: 42px;
+    box-shadow: 0 2px 10px rgba(22, 24, 26, 0.16);
+  }
+
+  /* Die Aufnahmen sind 3:2 bis 4:3. In einem hohen Feld entstehen dadurch
+     oben und unten breite leere Bänder — das Seitenverhältnis mitführen. */
+  .objgal__main { height: auto; aspect-ratio: 4 / 3; }
+  .objgal__nav { width: 38px; height: 38px; }
+  .objgal__nav svg { width: 14px; height: 14px; }
+  .objgal__nav--prev { left: 0.5rem; }
+  .objgal__nav--next { right: 0.5rem; }
+  .objgal__tags { left: 0.75rem; top: 0.75rem; }
+  .objgal__count { right: 0.75rem; bottom: 0.75rem; }
+
+  /* Kein Snapping: Das Skript scrollt die aktive Kachel selbst in die Sicht,
+     mandatory-Snapping korrigiert danach dagegen und lässt den Streifen
+     springen. */
+  .objgal__thumbs { padding: 0.5rem 0.75rem; }
+  .objgal__thumbs button { width: 76px; }
+
+  .objbody { padding: 1.4rem 1.15rem 2rem; }
+}
 
 /* ---- Inhaltsbereich ---------------------------------------------------- */
 .objbody { padding: clamp(1.6rem, 1.1rem + 2.2vw, 3rem); }
