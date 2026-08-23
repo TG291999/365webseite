@@ -1,0 +1,11 @@
+# Zugangsdaten — niemals einchecken
+.env
+.env.local
+*.key
+
+# Betriebssystem
+.DS_Store
+
+# Berichte aus dem Propstack-Test (können Objektdaten enthalten)
+tools/propstack-report.md
+tools/propstack-raw/

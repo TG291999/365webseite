@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "365-relaunch",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4365", "--directory", "/Users/tg/Desktop/365-relaunch"],
+      "port": 4365
+    }
+  ]
+}
