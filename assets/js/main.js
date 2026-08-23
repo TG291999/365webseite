@@ -100,19 +100,13 @@
   function initCtaBar() {
     var bar = $('[data-cta-bar]');
     if (!bar) return;
-    var convert = $('#bewertung');
 
-    // Im Sichtbereich des Conversion-Bereichs ausblenden – dort steht der CTA schon.
-    var nearForm = false;
-    if (convert && 'IntersectionObserver' in window) {
-      new IntersectionObserver(function (entries) {
-        nearForm = entries[0].isIntersecting;
-        update();
-      }, { rootMargin: '0px 0px -30% 0px' }).observe(convert);
-    }
-
+    // Bewusst ohne Ausnahmen: Die Leiste war vorher im Formularbereich
+    // ausgeblendet und auf Unterseiten ohne Formular durchgehend sichtbar.
+    // Das wirkte auf dem Telefon zufällig — mal da, mal weg. Jetzt gilt
+    // überall dieselbe Regel: ab dem Ende des Hero sichtbar, sonst nicht.
     function update() {
-      var show = window.scrollY > 620 && !nearForm;
+      var show = window.scrollY > 480;
       bar.classList.toggle('is-visible', show);
       bar.setAttribute('aria-hidden', String(!show));
     }
@@ -706,6 +700,31 @@
     return document.getElementById('bewertung') ? '#bewertung' : 'index.html#bewertung';
   }
 
+  /* Auf dem Telefon füllen beide Fenster den ganzen Bildschirm und werden
+     deshalb wie eigene Seiten erwartet: Die Zurück-Geste soll sie schließen,
+     nicht die Website verlassen. Dafür bekommt jedes geöffnete Fenster einen
+     Verlaufseintrag, der beim Schließen wieder abgeräumt wird — sonst führt
+     ein späterer Zurück-Tipp aus der Seite heraus. */
+  function verlaufAnbinden(fenster) {
+    fenster.addEventListener('dlg:open', function () {
+      history.pushState({ dlg: true }, '');
+    });
+    fenster.addEventListener('close', function () {
+      if (fenster.dataset.wechsel === '1') {   // anderes Fenster übernimmt den Eintrag
+        delete fenster.dataset.wechsel;
+        return;
+      }
+      if (fenster.dataset.vomVerlauf === '1') { // Zurück hat bereits abgeräumt
+        delete fenster.dataset.vomVerlauf;
+        return;
+      }
+      if (history.state && history.state.dlg) history.back();
+    });
+    window.addEventListener('popstate', function () {
+      if (fenster.open) { fenster.dataset.vomVerlauf = '1'; fenster.close(); }
+    });
+  }
+
   function ensureDialog() {
     if (dlg) return dlg;
     dlg = document.createElement('dialog');
@@ -721,7 +740,12 @@
       var thumb = e.target.closest('[data-gal-index]');
       if (thumb) { zeigeBild(Number(thumb.getAttribute('data-gal-index'))); return; }
       var termin = e.target.closest('[data-termin]');
-      if (termin) { var slug = termin.getAttribute('data-termin'); dlg.close(); openTermin(slug); }
+      if (termin) {
+        var slug = termin.getAttribute('data-termin');
+        dlg.dataset.wechsel = '1';        // Verlaufseintrag behalten, das Terminfenster übernimmt ihn
+        dlg.close();
+        openTermin(slug);
+      }
     });
     dlg.addEventListener('keydown', function (e) {
       if (galState.bilder.length < 2) return;
@@ -729,17 +753,7 @@
       if (e.key === 'ArrowLeft')  { e.preventDefault(); zeigeBild(galState.index - 1); }
     });
     dlg.addEventListener('close', function () { dlg.innerHTML = ''; });
-
-    // Auf dem Telefon füllt die Ansicht den ganzen Bildschirm und wird
-    // deshalb wie eine eigene Seite erwartet: Die Zurück-Geste schließt sie,
-    // statt die Website zu verlassen.
-    dlg.addEventListener('objdlg:open', function () {
-      if (history.state && history.state.objdlg) return;
-      history.pushState({ objdlg: true }, '');
-    });
-    window.addEventListener('popstate', function () {
-      if (dlg.open) dlg.close();
-    });
+    verlaufAnbinden(dlg);
     return dlg;
   }
 
@@ -887,7 +901,7 @@
       '</div>';
 
     d.showModal();
-    d.dispatchEvent(new Event('objdlg:open'));
+    d.dispatchEvent(new Event('dlg:open'));
     $('.objdlg__scroll', d).scrollTop = 0;
     track('reference_click', { objekt: o.slug });
   }
@@ -911,6 +925,7 @@
         if (e.target === terminDlg || e.target.closest('[data-dlg-close]')) terminDlg.close();
       });
       terminDlg.addEventListener('close', function () { terminDlg.innerHTML = ''; });
+      verlaufAnbinden(terminDlg);
     }
 
     terminDlg.innerHTML =
@@ -1042,6 +1057,7 @@
     });
 
     terminDlg.showModal();
+    terminDlg.dispatchEvent(new Event('dlg:open'));
     $('#t-vorname', terminDlg).focus({ preventScroll: true });
     track('viewing_request_open', { objekt: o.slug });
   }

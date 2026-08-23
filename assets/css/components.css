@@ -94,7 +94,10 @@
   padding: 0.5rem var(--gutter) 1.75rem;
 }
 .mobile-nav.is-open { display: block; }
-.mobile-nav a {
+/* :not(.btn) ist entscheidend: Ohne den Ausschluss überschreiben
+   display:block und padding:0.95rem 0 die Knopfform — der Text klebte
+   dann am linken Rand und lief aus dem Knopf heraus. */
+.mobile-nav a:not(.btn) {
   display: block;
   padding: 0.95rem 0;
   font-size: 1.0625rem; font-weight: 500;
@@ -302,6 +305,9 @@
   transition: transform 0.28s var(--ease);
 }
 .cta-bar.is-visible { transform: none; }
+/* Solange die Leiste eingeblendet ist, unten Platz freihalten — sonst legt
+   sie sich über den Abschluss-Knopf der jeweiligen Seite. */
+body:has(.cta-bar.is-visible) { padding-bottom: 84px; }
 .cta-bar .btn { flex: 1; }
 .cta-bar__tel {
   flex: none;
@@ -767,6 +773,12 @@
   .step__title { grid-column: 2; }
   .step__text { grid-column: 2; }
   .step__benefit { grid-column: 2; }
+  /* In der Zeitleiste stehen Wörter statt Ziffern („Grundsatz"). Bei fester
+     Spaltenbreite von 2.75rem schob sich der Titel darüber. */
+  .why__grid .step { grid-template-columns: 1fr; gap: 0.15rem; }
+  .why__grid .step__num { grid-column: 1; }
+  .why__grid .step__title,
+  .why__grid .step__text { grid-column: 1; }
 }
 
 /* „Für Sie bedeutet das" — übersetzt jede Leistung in Entlastung.
@@ -1619,3 +1631,22 @@ html:has(dialog[open]) { overflow: hidden; }
 .termdlg__lead { font-size: var(--t-small); color: var(--c-ink-2); margin-bottom: 1.75rem; }
 .termdlg .field-grid + .field-grid { margin-top: 0.9rem; }
 .termdlg .btn { width: 100%; margin-top: 1.5rem; }
+
+/* Auf dem Telefon ganzflächig — genau wie die Objektansicht. Als kleines
+   Fenster mit Rand ringsum wirkt ein Formular mit acht Feldern gequetscht,
+   und die Tastatur schiebt den Rest aus dem Bild. */
+@media (max-width: 760px) {
+  .termdlg {
+    width: 100%; max-width: 100%;
+    height: 100%; max-height: 100%;
+    margin: 0; border-radius: 0;
+  }
+  .termdlg__scroll { max-height: 100%; height: 100%; }
+  .termdlg__inner { padding: 1.4rem 1.15rem 2.5rem; }
+  .termdlg .objdlg__close {
+    position: fixed; right: 0.75rem; top: 0.75rem;
+    width: 42px; height: 42px;
+    box-shadow: 0 2px 10px rgba(22, 24, 26, 0.16);
+  }
+  .termdlg h2 { padding-right: 3.25rem; }
+}
