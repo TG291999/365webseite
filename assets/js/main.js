@@ -679,20 +679,24 @@
       // sie nicht. Beschreibungen bleiben den aktuellen Immobilien vorbehalten.
       (referenz ? '' : '<p class="ref__text">' + esc(o.kurztext) + '</p>') +
       (o.preis ? '<p class="obj__price">' + esc(o.preis) + '</p>' : '') +
-      // Referenzen sind Beleg, kein Angebot: keine Detailansicht, kein Klick.
-      // Der Aufruf steht nur bei den aktuellen Immobilien.
+      // Referenzen sind Beleg, kein Angebot: keine Detailseite, kein Klick.
+      // Aktuelle Immobilien führen auf eine eigene Unterseite — kein Popup:
+      // eigener Verlauf, funktionierende Zurück-Taste, teilbarer Link.
       (referenz ? '' :
-        '<button class="obj__open" type="button" data-obj="' + esc(o.slug) + '">' +
+        '<a class="obj__open" href="immobilie.html?objekt=' + encodeURIComponent(o.slug) + '" ' +
+           'data-track="object_open">' +
           'Alle Angaben ansehen<svg aria-hidden="true"><use href="#i-arrow"></use></svg>' +
           '<span class="visually-hidden"> zu ' + esc(o.titel) + '</span>' +
-        '</button>') +
+        '</a>') +
     '</article>';
   }
 
-  /* ------------------ Objekt-Detailansicht (Dialog) ----------------------
-     Aufbau wie ein Exposé: großes Bild oben, darunter Titel und Eckdaten,
-     dann Beschreibung links und eine mitlaufende Datenspalte rechts.     */
-  var dlg, galState = { bilder: [], index: 0 };
+  /* ------------------ Objekt-Detailseite (immobilie.html) ---------------
+     Bewusst eine eigene Seite statt eines Popups: eigener Verlauf, echte
+     Zurück-Taste, teilbarer Link, kein Fenster-im-Fenster auf dem Telefon.
+     Aufbau wie ein Exposé: Galerie oben, darunter Titel und Eckdaten, dann
+     Beschreibung links und eine Datenspalte rechts.                      */
+  var galState = { bilder: [], index: 0 };
 
   /* Das Bewertungsformular steht nur auf der Startseite. Von Unterseiten aus
      muss der Verweis deshalb dorthin führen, nicht auf einen leeren Anker. */
@@ -700,53 +704,21 @@
     return document.getElementById('bewertung') ? '#bewertung' : 'index.html#bewertung';
   }
 
-  function ensureDialog() {
-    if (dlg) return dlg;
-    dlg = document.createElement('dialog');
-    dlg.className = 'objdlg';
-    dlg.setAttribute('aria-labelledby', 'objdlg-title');
-    document.body.appendChild(dlg);
-
-    dlg.addEventListener('click', function (e) {
-      if (e.target === dlg) { dlg.close(); return; }          // Klick auf den Hintergrund
-      if (e.target.closest('[data-dlg-close]')) { dlg.close(); return; }
-      var nav = e.target.closest('[data-gal-step]');
-      if (nav) { zeigeBild(galState.index + Number(nav.getAttribute('data-gal-step'))); return; }
-      var thumb = e.target.closest('[data-gal-index]');
-      if (thumb) { zeigeBild(Number(thumb.getAttribute('data-gal-index'))); return; }
-      var termin = e.target.closest('[data-termin]');
-      if (termin) { var slug = termin.getAttribute('data-termin'); dlg.close(); openTermin(slug); }
-    });
-    dlg.addEventListener('keydown', function (e) {
-      if (galState.bilder.length < 2) return;
-      if (e.key === 'ArrowRight') { e.preventDefault(); zeigeBild(galState.index + 1); }
-      if (e.key === 'ArrowLeft')  { e.preventDefault(); zeigeBild(galState.index - 1); }
-    });
-    // Das close-Ereignis eines <dialog> feuert verzögert — gemessen bis zu
-    // 600 ms nach dem Schließen. Wurde inzwischen das nächste Objekt
-    // geöffnet, löschte dieses Aufräumen dessen frischen Inhalt: Das Fenster
-    // ging auf und war leer. Deshalb nur räumen, wenn wirklich zu.
-    dlg.addEventListener('close', function () {
-      if (!dlg.open) dlg.innerHTML = '';
-    });
-    return dlg;
-  }
-
   function zeigeBild(i) {
     var n = galState.bilder.length;
     if (!n) return;
-    galState.index = (i % n + n) % n;
+    galState.index = (i + n) % n;
     var b = galState.bilder[galState.index];
-    var main = $('[data-gal-main]', dlg);
+    var main = $('[data-gal-main]');
     if (main) {
       main.src = b + '-1200.webp';
       main.style.animation = 'none';
       void main.offsetWidth;
       main.style.animation = '';
     }
-    var cnt = $('[data-gal-count]', dlg);
+    var cnt = $('[data-gal-count]');
     if (cnt) cnt.textContent = (galState.index + 1) + ' von ' + n;
-    $$('[data-gal-index]', dlg).forEach(function (t) {
+    $$('[data-gal-index]').forEach(function (t) {
       var aktiv = Number(t.getAttribute('data-gal-index')) === galState.index;
       t.setAttribute('aria-current', String(aktiv));
       if (aktiv && t.scrollIntoView) t.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -759,18 +731,90 @@
 
   /* Eckdaten für die Seitenspalte: Label leicht aufgeräumt */
   var FAKT_LABEL = {
-    'qm Wohnfläche': 'Wohnfläche',
-    'qm Grundstück': 'Grundstück',
-    'Objekt- Zustand': 'Zustand',
-    'Energieeffizienz': 'Energieeffizienz'
+    'qm Wohnfläche': 'Wohnfläche', 'qm Grundstück': 'Grundstück',
+    'Zimmer': 'Zimmer', 'Baujahr': 'Baujahr', 'Zustand': 'Zustand',
+    'Etage': 'Etage', 'Etagen': 'Etagen', 'Heizungsart': 'Heizung'
   };
   var FAKT_EINHEIT = { 'qm Wohnfläche': ' m²', 'qm Grundstück': ' m²' };
 
-  function openObjekt(slug) {
+  function terminFormular(o) {
+    return '<form class="terminform" data-termin-form novalidate>' +
+      '<input type="hidden" name="objekt" value="' + esc(o.titel) + '">' +
+      '<input type="hidden" name="objekt_id" value="' + esc(o.propstack_id || o.slug) + '">' +
+      '<div class="field-grid field-grid--2">' +
+        '<div class="field"><label for="t-vorname">Vorname</label>' +
+          '<input type="text" id="t-vorname" name="vorname" autocomplete="given-name" required>' +
+          '<p class="field__error" role="alert"></p></div>' +
+        '<div class="field"><label for="t-nachname">Nachname</label>' +
+          '<input type="text" id="t-nachname" name="nachname" autocomplete="family-name" required>' +
+          '<p class="field__error" role="alert"></p></div>' +
+        '<div class="field"><label for="t-email">E-Mail</label>' +
+          '<input type="email" id="t-email" name="email" autocomplete="email" required>' +
+          '<p class="field__error" role="alert"></p></div>' +
+        '<div class="field"><label for="t-tel">Telefon</label>' +
+          '<input type="tel" id="t-tel" name="telefon" autocomplete="tel" required>' +
+          '<p class="field__error" role="alert"></p></div>' +
+      '</div>' +
+      '<div class="field-grid"><div class="field">' +
+        '<label for="t-zeit">Wann passt es Ihnen? <span class="opt">(optional)</span></label>' +
+        '<input type="text" id="t-zeit" name="wunschzeit" placeholder="z. B. nächste Woche nachmittags">' +
+      '</div></div>' +
+      '<div class="field-grid"><div class="field">' +
+        '<label for="t-text">Ihre Nachricht <span class="opt">(optional)</span></label>' +
+        '<textarea id="t-text" name="nachricht" rows="3"></textarea>' +
+      '</div></div>' +
+      '<label class="consent" for="t-consent">' +
+        '<input type="checkbox" id="t-consent" name="einwilligung" required>' +
+        '<span>Ich bin damit einverstanden, dass meine Angaben zur Bearbeitung meiner ' +
+          'Anfrage gespeichert und verarbeitet werden. Weitere Informationen in der ' +
+          '<a href="datenschutz.html">Datenschutzerklärung</a>.</span></label>' +
+      '<p class="field__error" data-error-for="t-consent" role="alert"></p>' +
+      '<div style="position:absolute;left:-9999px" aria-hidden="true">' +
+        '<label for="t-hp">Bitte nicht ausfüllen</label>' +
+        '<input type="text" id="t-hp" name="website" tabindex="-1" autocomplete="off"></div>' +
+      '<button class="btn btn--primary" type="submit" data-t-submit>Besichtigung anfragen</button>' +
+      '<p class="lf__trust"><svg aria-hidden="true"><use href="#i-lock"></use></svg>' +
+        '<span>Vertraulich und unverbindlich. Ich melde mich persönlich bei Ihnen.</span></p>' +
+      '<div class="lf__message lf__message--ok" data-t-ok hidden role="status" style="margin-top:1.25rem">' +
+        '<strong>Vielen Dank.</strong> Ihre Anfrage ist bei mir angekommen. Ich melde mich ' +
+        'mit einem Terminvorschlag bei Ihnen.</div>' +
+      '<div class="lf__message lf__message--error" data-t-error hidden role="alert" style="margin-top:1.25rem">' +
+        '<strong>Ihre Anfrage konnte nicht gesendet werden.</strong> Bitte versuchen Sie es ' +
+        'erneut oder rufen Sie mich an unter <a href="' + esc((SITE.contact || {}).phoneMobileHref || '#') + '">' +
+        esc((SITE.contact || {}).phoneMobile || '') + '</a>.</div>' +
+    '</form>';
+  }
+
+  function initObjektSeite() {
+    var host = $('[data-objekt-seite]');
+    if (!host) return;
+
+    var slug = '';
+    try { slug = new URLSearchParams(window.location.search).get('objekt') || ''; } catch (e) { slug = ''; }
     var o = OBJEKTE.filter(function (x) { return x.slug === slug; })[0];
-    if (!o) return;
-    var d = ensureDialog();
+
+    if (!o) {
+      host.innerHTML =
+        '<section class="section"><div class="container container--narrow" style="text-align:center">' +
+          '<p class="eyebrow eyebrow--center">Nicht gefunden</p>' +
+          '<h1 class="h2">Diese Immobilie gibt es nicht mehr.</h1>' +
+          '<p class="lead" style="margin:1.25rem auto 2rem;max-width:46ch">Vielleicht wurde sie bereits ' +
+            'verkauft. In der Übersicht finden Sie alle Objekte, die aktuell vermarktet werden.</p>' +
+          '<a class="btn btn--primary" href="immobilien.html">Zu den aktuellen Immobilien</a>' +
+        '</div></section>';
+      document.title = 'Immobilie nicht gefunden | 365 Grundbesitz';
+      return;
+    }
+
     var c = SITE.contact || {};
+    var aktuell = o.bucket === 'aktuell';
+    var zurueck = aktuell ? 'immobilien.html' : 'referenzen.html';
+    var zurueckText = aktuell ? 'Alle aktuellen Immobilien' : 'Alle Referenzen';
+
+    document.title = o.titel + ' | 365 Grundbesitz';
+    var beschr = document.querySelector('meta[name="description"]');
+    if (beschr && o.kurztext) beschr.setAttribute('content', o.kurztext);
+
     galState = { bilder: (o.galerie && o.galerie.length ? o.galerie : [o.bild]), index: 0 };
     var mehrere = galState.bilder.length > 1;
 
@@ -795,8 +839,7 @@
 
     var fakten = (o.fakten || []).filter(function (fk) { return fk.wert; }).map(function (fk) {
       var label = FAKT_LABEL[fk.label] || fk.label;
-      var wert = esc(fk.wert) + (FAKT_EINHEIT[fk.label] || '');
-      return '<div><dt>' + esc(label) + '</dt><dd>' + wert + '</dd></div>';
+      return '<div><dt>' + esc(label) + '</dt><dd>' + esc(fk.wert) + (FAKT_EINHEIT[fk.label] || '') + '</dd></div>';
     }).join('');
     if (o.ort) fakten = '<div><dt>Ort</dt><dd>' + esc(o.ort) + '</dd></div>' + fakten;
 
@@ -807,34 +850,30 @@
           : (o.status === 'VERMITTELT'
               ? '<p class="objhead__price"><span>Dieses Objekt wurde bereits vermittelt.</span></p>' : ''));
 
-    var aktuell = o.bucket === 'aktuell';
-
-    d.innerHTML =
-      '<div class="objdlg__scroll">' +
-        '<button class="objdlg__close" type="button" data-dlg-close aria-label="Schließen">' +
-          '<svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>' +
-        '</button>' +
-
-        '<div class="objgal">' +
-          '<div class="objgal__main">' +
-            '<img data-gal-main src="' + esc(galState.bilder[0]) + '-1200.webp" alt="' + esc(o.alt) + '">' +
-            '<span class="objgal__tags">' + tags + '</span>' + nav +
-          '</div>' + thumbs +
+    host.innerHTML =
+      '<div class="objseite">' +
+        '<div class="container">' +
+          '<a class="objseite__zurueck" href="' + zurueck + '">' +
+            '<svg aria-hidden="true"><use href="#i-arrow-l"></use></svg>' + zurueckText + '</a>' +
         '</div>' +
 
-        '<div class="objbody">' +
+        '<div class="container">' +
+          '<div class="objgal">' +
+            '<div class="objgal__main">' +
+              '<img data-gal-main src="' + esc(galState.bilder[0]) + '-1200.webp" alt="' + esc(o.alt) + '">' +
+              '<span class="objgal__tags">' + tags + '</span>' + nav +
+            '</div>' + thumbs +
+          '</div>' +
+
           '<div class="objhead">' +
             '<div class="objhead__text">' +
               '<p class="objhead__meta">' + esc([o.art, o.ort].filter(Boolean).join(' · ')) + '</p>' +
-              '<h2 class="objhead__title" id="objdlg-title">' + esc(o.titel) + '</h2>' +
+              '<h1 class="objhead__title">' + esc(o.titel) + '</h1>' +
               preisZeile +
             '</div>' +
-            // Der Platz rechts neben dem Titel steht ohnehin leer — und der
-            // Aufruf steht damit über der Falz statt erst hinter dem Fließtext.
             (aktuell
               ? '<div class="objhead__aktion">' +
-                  '<button class="btn btn--primary" type="button" data-termin="' + esc(o.slug) + '">' +
-                    'Besichtigungstermin anfragen</button>' +
+                  '<a class="btn btn--primary" href="#termin">Besichtigungstermin anfragen</a>' +
                 '</div>'
               : '') +
           '</div>' +
@@ -842,21 +881,20 @@
           '<div class="objgrid">' +
             '<div class="objtext">' +
               (o.beschreibung && o.beschreibung.length
-                ? '<section><h4>Objektbeschreibung</h4>' + absaetze(o.beschreibung) + '</section>' : '') +
+                ? '<section><h2>Objektbeschreibung</h2>' + absaetze(o.beschreibung) + '</section>' : '') +
               (o.lage && o.lage.length
-                ? '<section><h4>Lage</h4>' + absaetze(o.lage) + '</section>' : '') +
+                ? '<section><h2>Lage</h2>' + absaetze(o.lage) + '</section>' : '') +
             '</div>' +
 
             '<aside class="objside">' +
               (fakten ? '<div class="objcard"><p class="objcard__title">Eckdaten</p><dl class="objfacts">' + fakten + '</dl></div>' : '') +
               '<div class="objaction">' +
                 (aktuell
-                  ? '<button class="btn btn--primary" type="button" data-termin="' + esc(o.slug) + '">' +
-                      'Besichtigung anfragen</button>'
-                  : '<a class="btn btn--primary" href="' + bewertungZiel() + '" data-dlg-close data-track="hero_cta_click">' +
+                  ? '<a class="btn btn--primary" href="#termin">Besichtigung anfragen</a>'
+                  : '<a class="btn btn--primary" href="' + bewertungZiel() + '" data-track="hero_cta_click">' +
                       'Immobilie bewerten lassen</a>') +
                 '<div class="objaction__person">' +
-                  '<img src="assets/img/leonie/leonie-hero-480.webp" alt="" loading="lazy" decoding="async">' +
+                  '<img src="assets/img/leonie/leonie-portrait-136.webp" alt="" loading="lazy" decoding="async">' +
                   '<span><b>' + esc(c.person || 'Leonie Becker') + '</b>' +
                     '<span>' + (aktuell ? 'Ihre Ansprechpartnerin für dieses Objekt' : 'Ihre Ansprechpartnerin') + '</span></span>' +
                 '</div>' +
@@ -868,111 +906,50 @@
                   '<a href="' + esc(c.emailPersonHref || c.emailHref || '#') + '">' +
                     '<svg aria-hidden="true"><use href="#i-mail"></use></svg>' + esc(c.emailPerson || c.email || '') + '</a>' +
                 '</div>' +
-                '<p class="objdlg__hint">Alle Angaben stammen aus den Objektunterlagen und wurden ohne Gewähr übernommen.</p>' +
+                '<p class="objside__hint">Alle Angaben stammen aus den Objektunterlagen und wurden ohne Gewähr übernommen.</p>' +
               '</div>' +
             '</aside>' +
           '</div>' +
         '</div>' +
-      '</div>';
+      '</div>' +
 
-    d.showModal();
-    $('.objdlg__scroll', d).scrollTop = 0;
-    track('reference_click', { objekt: o.slug });
-  }
+      (aktuell
+        ? '<section class="section section--paper-2" id="termin">' +
+            '<div class="container container--narrow">' +
+              '<p class="eyebrow">Besichtigung</p>' +
+              '<h2 class="h2">Termin anfragen</h2>' +
+              '<p class="lead measure" style="margin:1.1rem 0 2rem">Sagen Sie mir, wann es Ihnen passt. ' +
+                'Ich melde mich mit einem konkreten Terminvorschlag – oder rufe kurz an, wenn Fragen offen sind.</p>' +
+              terminFormular(o) +
+            '</div>' +
+          '</section>'
+        : '');
 
-  /* ------------------ Besichtigungsanfrage (eigener Dialog) --------------
-     Kurzes Formular direkt am Objekt: Name, Kontakt, Wunschzeit. Sendet an
-     denselben Endpunkt wie das Bewertungsformular, mit typ: 'besichtigung'. */
-  var terminDlg;
-
-  function openTermin(slug) {
-    var o = OBJEKTE.filter(function (x) { return x.slug === slug; })[0];
-    if (!o) return;
-    var c = SITE.contact || {};
-
-    if (!terminDlg) {
-      terminDlg = document.createElement('dialog');
-      terminDlg.className = 'termdlg';
-      terminDlg.setAttribute('aria-labelledby', 'termdlg-title');
-      document.body.appendChild(terminDlg);
-      terminDlg.addEventListener('click', function (e) {
-        if (e.target === terminDlg || e.target.closest('[data-dlg-close]')) terminDlg.close();
+    // Galerie bedienen
+    if (mehrere) {
+      host.addEventListener('click', function (e) {
+        var nb = e.target.closest('[data-gal-step]');
+        if (nb) { zeigeBild(galState.index + Number(nb.getAttribute('data-gal-step'))); return; }
+        var th = e.target.closest('[data-gal-index]');
+        if (th) zeigeBild(Number(th.getAttribute('data-gal-index')));
       });
-      terminDlg.addEventListener('close', function () {
-        if (!terminDlg.open) terminDlg.innerHTML = '';   // siehe Hinweis bei ensureDialog
+      document.addEventListener('keydown', function (e) {
+        if (e.target.closest('input, textarea')) return;
+        if (e.key === 'ArrowRight') zeigeBild(galState.index + 1);
+        if (e.key === 'ArrowLeft')  zeigeBild(galState.index - 1);
       });
     }
 
-    terminDlg.innerHTML =
-      '<div class="termdlg__scroll">' +
-        '<button class="objdlg__close" type="button" data-dlg-close aria-label="Schließen">' +
-          '<svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>' +
-        '</button>' +
-        '<div class="termdlg__inner">' +
-          '<p class="eyebrow">Besichtigung</p>' +
-          '<h2 id="termdlg-title">Termin anfragen</h2>' +
-          '<p class="termdlg__lead">Sagen Sie mir, wann es Ihnen passt. Ich melde mich mit ' +
-            'einem konkreten Terminvorschlag – oder rufe kurz an, wenn Fragen offen sind.</p>' +
+    if (aktuell) terminFormularVerdrahten(o);
+    track('object_view', { objekt: o.slug });
+  }
 
-          '<div class="termdlg__objekt">' +
-            '<img src="' + esc(o.bild) + '-480.webp" alt="" loading="lazy">' +
-            '<span><b>' + esc(o.titel) + '</b>' +
-              '<span>' + esc([o.art, o.ort].filter(Boolean).join(' · ')) +
-              (o.preis ? ' · ' + esc(o.preis) : '') + '</span></span>' +
-          '</div>' +
-
-          '<form data-termin-form novalidate>' +
-            '<input type="hidden" name="objekt" value="' + esc(o.titel) + '">' +
-            '<input type="hidden" name="objekt_id" value="' + esc(o.propstack_id || o.slug) + '">' +
-            '<div class="field-grid field-grid--2">' +
-              '<div class="field"><label for="t-vorname">Vorname</label>' +
-                '<input type="text" id="t-vorname" name="vorname" autocomplete="given-name" required>' +
-                '<p class="field__error" role="alert"></p></div>' +
-              '<div class="field"><label for="t-nachname">Nachname</label>' +
-                '<input type="text" id="t-nachname" name="nachname" autocomplete="family-name" required>' +
-                '<p class="field__error" role="alert"></p></div>' +
-              '<div class="field"><label for="t-email">E-Mail</label>' +
-                '<input type="email" id="t-email" name="email" autocomplete="email" required>' +
-                '<p class="field__error" role="alert"></p></div>' +
-              '<div class="field"><label for="t-tel">Telefon</label>' +
-                '<input type="tel" id="t-tel" name="telefon" autocomplete="tel" required>' +
-                '<p class="field__error" role="alert"></p></div>' +
-            '</div>' +
-            '<div class="field-grid">' +
-              '<div class="field"><label for="t-zeit">Wann passt es Ihnen? <span class="opt">(optional)</span></label>' +
-                '<input type="text" id="t-zeit" name="wunschzeit" placeholder="z. B. nächste Woche nachmittags"></div>' +
-            '</div>' +
-            '<div class="field-grid">' +
-              '<div class="field"><label for="t-text">Ihre Nachricht <span class="opt">(optional)</span></label>' +
-                '<textarea id="t-text" name="nachricht" rows="3"></textarea></div>' +
-            '</div>' +
-            '<label class="consent" for="t-consent">' +
-              '<input type="checkbox" id="t-consent" name="einwilligung" required>' +
-              '<span>Ich bin damit einverstanden, dass meine Angaben zur Bearbeitung meiner ' +
-                'Anfrage gespeichert und verarbeitet werden. Weitere Informationen in der ' +
-                '<a href="datenschutz.html">Datenschutzerklärung</a>.</span></label>' +
-            '<p class="field__error" data-error-for="t-consent" role="alert"></p>' +
-            '<div style="position:absolute;left:-9999px" aria-hidden="true">' +
-              '<label for="t-hp">Bitte nicht ausfüllen</label>' +
-              '<input type="text" id="t-hp" name="website" tabindex="-1" autocomplete="off"></div>' +
-            '<button class="btn btn--primary" type="submit" data-t-submit>Besichtigung anfragen</button>' +
-            '<p class="lf__trust"><svg aria-hidden="true"><use href="#i-lock"></use></svg>' +
-              '<span>Vertraulich und unverbindlich. Ich melde mich persönlich bei Ihnen.</span></p>' +
-            '<div class="lf__message lf__message--ok" data-t-ok hidden role="status" style="margin-top:1.25rem">' +
-              '<strong>Vielen Dank.</strong> Ihre Anfrage ist bei mir angekommen. Ich melde mich ' +
-              'mit einem Terminvorschlag bei Ihnen.</div>' +
-            '<div class="lf__message lf__message--error" data-t-error hidden role="alert" style="margin-top:1.25rem">' +
-              '<strong>Ihre Anfrage konnte nicht gesendet werden.</strong> Bitte versuchen Sie es ' +
-              'erneut oder rufen Sie mich an unter <a href="' + esc(c.phoneMobileHref || '#') + '">' +
-              esc(c.phoneMobile || '') + '</a>.</div>' +
-          '</form>' +
-        '</div>' +
-      '</div>';
-
-    var form = $('[data-termin-form]', terminDlg);
-    var ok   = $('[data-t-ok]', form);
-    var err  = $('[data-t-error]', form);
-    var btn  = $('[data-t-submit]', form);
+  function terminFormularVerdrahten(o) {
+    var form = $('[data-termin-form]');
+    if (!form) return;
+    var ok  = $('[data-t-ok]', form);
+    var err = $('[data-t-error]', form);
+    var btn = $('[data-t-submit]', form);
 
     function fehler(el, msg) {
       var feld = el.closest('.field');
@@ -987,8 +964,8 @@
       ok.hidden = true; err.hidden = true;
       var gueltig = true, erster = null;
       [['#t-vorname', 'Bitte tragen Sie Ihren Vornamen ein.'],
-       ['#t-nachname', 'Bitte tragen Sie Ihren Nachnamen ein.']].forEach(function (p) {
-        var el = $(p[0], form), msg = el.value.trim() ? '' : p[1];
+       ['#t-nachname', 'Bitte tragen Sie Ihren Nachnamen ein.']].forEach(function (paar) {
+        var el = $(paar[0], form), msg = el.value.trim() ? '' : paar[1];
         fehler(el, msg); if (msg) { gueltig = false; erster = erster || el; }
       });
       var mail = $('#t-email', form);
@@ -1014,15 +991,19 @@
         btn.disabled = false; btn.textContent = 'Besichtigung anfragen';
         if (erfolg) {
           track('viewing_request_submit', { objekt: o.slug });
-          $$('.field, .consent, .field-grid, [data-t-submit], .lf__trust', form)
+          $$('.field-grid, .consent, [data-t-submit], .lf__trust', form)
             .forEach(function (el) { el.hidden = true; });
           ok.hidden = false;
-        } else { err.hidden = false; }
+          ok.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+        } else {
+          err.hidden = false;
+        }
       };
-      var endpoint = SITE.form && SITE.form.endpoint;
+
+      var endpoint = (SITE.form || {}).endpoint;
       if (!endpoint) {
         console.info('[365] Demo-Modus — Besichtigungsanfrage nicht versendet. Daten:', daten);
-        window.setTimeout(function () { fertig(true); }, 450);
+        setTimeout(function () { fertig(true); }, 500);
         return;
       }
       fetch(endpoint, { method: 'POST',
@@ -1030,10 +1011,6 @@
         body: JSON.stringify(daten) })
         .then(function (r) { fertig(r.ok); }).catch(function () { fertig(false); });
     });
-
-    terminDlg.showModal();
-    $('#t-vorname', terminDlg).focus({ preventScroll: true });
-    track('viewing_request_open', { objekt: o.slug });
   }
 
   /* ---------- Kuratierte Referenzen auf der Startseite (§13) -------------
@@ -1064,10 +1041,6 @@
 
     host.setAttribute('data-anzahl', String(refs.length));
     host.innerHTML = refs.map(objectCard).join('');
-    host.addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-obj]');
-      if (btn) openObjekt(btn.getAttribute('data-obj'));
-    });
   }
 
   function initObjectGrid() {
@@ -1135,11 +1108,6 @@
       });
     });
 
-    grid.addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-obj]');
-      if (btn) openObjekt(btn.getAttribute('data-obj'));
-    });
-
     // Startfilter: der vorgesehene, sofern er etwas zeigt — sonst „alle"
     var start = $('[data-filter][aria-pressed="true"]');
     var startKey = start ? start.getAttribute('data-filter') : 'alle';
@@ -1171,6 +1139,7 @@
     initCallback();
     initRefHighlights();
     initObjectGrid();
+    initObjektSeite();
   }
 
   if (document.readyState === 'loading') {
