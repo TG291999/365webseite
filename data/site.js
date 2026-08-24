@@ -27,11 +27,11 @@ window.SITE = {
     zip:       '44135',
     city:      'Dortmund',
 
-    phoneOffice:        '0231 862 803 21',
+    phoneOffice:        '0231 / 862 803 21',
     phoneOfficeHref:    'tel:+4923186280321',
-    phoneMobile:        '0172 7062000',
+    phoneMobile:        '0172 / 7062000',
     phoneMobileHref:    'tel:+491727062000',
-    whatsapp:           '0172 7062000',
+    whatsapp:           '0172 / 7062000',
     whatsappHref:       'https://wa.me/491727062000',
 
     email:           'info@365-grundbesitz.de',

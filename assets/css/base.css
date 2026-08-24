@@ -99,7 +99,12 @@
 
 /* ----------------------------------- Reset ------------------------------ */
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+/* overflow-x auch auf html, nicht nur auf body: Bei schmalen Fenstern
+   trug das weit überbreite (aber selbst mit overflow:hidden geclippte)
+   Laufband trotzdem zu documentElement.scrollWidth bei — vermutlich weil
+   die Propagation von body auf die Wurzel bei „clip" anders greift als
+   bei „hidden". Auf html direkt gesetzt, ist der Fall eindeutig. */
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 body {
