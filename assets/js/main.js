@@ -549,6 +549,7 @@
 
       var data = Object.fromEntries(new FormData(form).entries());
       delete data.website;
+      data.typ = 'bewertung';
 
       btnSubmit.disabled = true;
       btnSubmit.textContent = 'Wird gesendet …';

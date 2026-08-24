@@ -76,7 +76,11 @@
      Regel, die Kontrastempfindlichkeit nimmt ab 55 messbar ab. Deshalb
      keine grauen Mini-Texte — Fließtext 18 px, Sekundärtext 16,5 px,
      Kontextzeilen 13 px, gedämpfte Farbe bei rund 6:1 statt 4,5:1.       */
-  --t-display: clamp(2.4rem, 0.7rem + 3.7vw, 3.95rem);
+  /* Untergrenze gesenkt, damit die Zeile „Eine Ansprechpartnerin." in der
+     Hero-Ueberschrift auf dem Telefon nicht nach „Eine" umbricht. Betrifft
+     nur diese eine Ueberschrift — die anderen .display-Elemente setzen
+     ihre Groesse selbst ueber --t-h2. */
+  --t-display: clamp(1.75rem, 0.7rem + 3.7vw, 3.95rem);
   --t-h2:      clamp(1.95rem, 1.25rem + 2.7vw, 3.35rem);
   --t-h3:      clamp(1.25rem, 1.12rem + 0.55vw, 1.5rem);
   --t-lead:    clamp(1.12rem, 1.04rem + 0.42vw, 1.3rem);

@@ -288,6 +288,14 @@
   .hero__figure { margin-inline: 0; }
   .hero__figure img { max-height: min(74vh, 640px); }
 }
+/* An genau dieser Schwelle schrumpft die Textspalte auf einmal (Zweispalter
+   beginnt), waehrend --t-display fuer die volle einspaltige Breite skaliert
+   war — „Eine Ansprechpartnerin." brach dadurch zwischen 900 und rund
+   1049px erneut mitten im Wort um. In dieser Lücke eine eigene, zur
+   schmaleren Spalte passende Groesse. */
+@media (min-width: 900px) and (max-width: 1049.98px) {
+  .hero .display { font-size: clamp(2.3rem, 1.2rem + 2vw, 2.55rem); }
+}
 @media (max-width: 899px) {
   .hero__figure { max-width: 420px; margin-inline: 0; }
   .hero__body { padding-bottom: 2rem; }

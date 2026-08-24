@@ -85,12 +85,11 @@ window.SITE = {
   ],
 
   /* --- Formular ----------------------------------------------------------
-     endpoint: null  ->  Lokaler Demo-Modus. Das Formular validiert und
-     zeigt die Erfolgsmeldung, versendet aber nichts.
-     Für den Livebetrieb hier die URL des Form-Handlers eintragen
-     (z. B. eigener Endpunkt, Formspree, Webflow-Form-Action).            */
+     Läuft über api/lead.js (Vercel-Funktion) und von dort per Resend als
+     E-Mail. Der eigentliche Schlüssel steht nur als Umgebungsvariable bei
+     Vercel — hier nur der Pfad zur Funktion.                             */
   form: {
-    endpoint: null
+    endpoint: '/api/lead'
   },
 
   /* --- Tracking ----------------------------------------------------------
