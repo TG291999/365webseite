@@ -15,12 +15,15 @@
    Erwartete Umgebungsvariablen (bei Vercel unter Project -> Settings ->
    Environment Variables einzutragen, nicht im Code):
      RESEND_API_KEY   Pflicht. Erzeugt in Resend unter API Keys.
-     RESEND_FROM      Optional. Absender, z. B. "365 Grundbesitz <noreply@365-grundbesitz.de>"
-                       Muss zu einer in Resend verifizierten Domain gehören.
+     RESEND_FROM      Optional. Absender, Standard: Leonie Beckers eigene Adresse.
+                       Bewusst kein no-reply — Resends eigene Zustellbarkeits-
+                       Prüfung rät ausdrücklich davon ab, und wer antwortet,
+                       soll direkt bei ihr landen. Muss zu einer in Resend
+                       verifizierten Domain gehören.
      LEAD_TO_EMAIL    Optional. Empfänger der Anfragen, Standard: info@365-grundbesitz.de
    ========================================================================= */
 
-const ABSENDER = process.env.RESEND_FROM || '365 Grundbesitz <noreply@365-grundbesitz.de>';
+const ABSENDER = process.env.RESEND_FROM || 'Leonie Becker <becker@365-grundbesitz.de>';
 const EMPFAENGER = process.env.LEAD_TO_EMAIL || 'info@365-grundbesitz.de';
 const SITE_URL = 'https://365-grundbesitz.de';
 const ORANGE = '#D93F00';   // WCAG-taugliches Orange, wie im Rest der Website
@@ -75,16 +78,35 @@ function internMail(daten, typ, name) {
 }
 
 /* ------------------------- Bestätigung an den Absender ------------------ */
+/* Text je nach Formular. Die "bewertung"-Fassung ist Wort für Wort
+   abgestimmt; "besichtigung" folgt demselben Ton, aber mit eigenen Fakten
+   und ohne den Verkaufssatz — hier fragt in der Regel ein Kaufinteressent
+   an, nicht ein Eigentümer. */
 var BESTAETIGUNG_TEXT = {
   bewertung: {
-    ueberschrift: 'Ihre Anfrage ist bei mir angekommen.',
-    einleitung: 'vielen Dank für Ihre Anfrage zur Immobilienbewertung. Ich habe Ihre ' +
-      'Angaben erhalten und sehe sie mir persönlich an.'
+    betreff: 'Ihre Bewertungsanfrage ist angekommen',
+    einleitung: 'vielen Dank für Ihre Anfrage. Ihre Angaben liegen mir vor – ich sehe sie mir persönlich an.',
+    fakten: function (daten) {
+      return zeile('Objektart', daten.objektart) +
+             zeile('Ort', [daten.plz, daten.ort].filter(Boolean).join(' '));
+    },
+    versprechen: 'Innerhalb von 24 Stunden (werktags) rufe ich Sie persönlich zurück – von der 0172 / 7062000. ' +
+      'Bis dahin müssen Sie nichts weiter tun.',
+    sicherheit: 'Ihre Anfrage ist kostenfrei und unverbindlich, Ihre Daten bleiben vertraulich. ' +
+      'Ob und wann Sie verkaufen, entscheiden allein Sie.'
   },
   besichtigung: {
-    ueberschrift: 'Ihre Besichtigungsanfrage ist bei mir angekommen.',
-    einleitung: 'vielen Dank für Ihr Interesse. Ich habe Ihre Anfrage zur Besichtigung ' +
-      'erhalten und kümmere mich um einen passenden Termin.'
+    betreff: 'Ihre Besichtigungsanfrage ist angekommen',
+    einleitung: function (daten) {
+      return 'vielen Dank für Ihr Interesse' + (daten.objekt ? ' an „' + esc(daten.objekt) + '"' : '') +
+        '. Ihre Anfrage liegt mir vor.';
+    },
+    fakten: function (daten) {
+      return zeile('Objekt', daten.objekt) + zeile('Wunschtermin', daten.wunschzeit);
+    },
+    versprechen: 'Innerhalb von 24 Stunden (werktags) melde ich mich persönlich bei Ihnen mit einem ' +
+      'Terminvorschlag – von der 0172 / 7062000. Bis dahin müssen Sie nichts weiter tun.',
+    sicherheit: 'Ihre Anfrage ist unverbindlich, Ihre Daten bleiben vertraulich.'
   }
 };
 
@@ -92,15 +114,13 @@ function bestaetigungsMail(daten, typ, name) {
   var text = BESTAETIGUNG_TEXT[typ];
   if (!text) return null;
 
-  var vorname = (daten.vorname || name || '').trim().split(/\s+/)[0];
-  var anrede = vorname ? 'Hallo ' + esc(vorname) + ',' : 'Hallo,';
+  // Kein Anrede-/Titelfeld im Formular (Herr/Frau) — der volle Name ist die
+  // neutrale, verlässliche Wahl statt einer geratenen Anrede.
+  var vollerName = [daten.vorname, daten.nachname].filter(Boolean).join(' ') || name || '';
+  var anrede = 'Guten Tag' + (vollerName ? ' ' + esc(vollerName) : '') + ',';
 
-  var zusammenfassung =
-    zeile('Objekt', daten.objekt) +
-    zeile('Objektart', daten.objektart) +
-    zeile('Ort', [daten.plz, daten.ort].filter(Boolean).join(' ')) +
-    zeile('Wunschtermin', daten.wunschzeit) +
-    zeile('Ihre Nachricht', daten.nachricht);
+  var einleitungSatz = typeof text.einleitung === 'function' ? text.einleitung(daten) : text.einleitung;
+  var fakten = text.fakten(daten);
 
   var html =
     '<table cellpadding="0" cellspacing="0" width="100%" style="background:#f4f0ea;padding:32px 0;font-family:Arial,Helvetica,sans-serif">' +
@@ -112,29 +132,29 @@ function bestaetigungsMail(daten, typ, name) {
           '</td></tr>' +
 
           '<tr><td style="padding:32px 32px 8px">' +
-            '<h1 style="margin:0 0 20px;font-size:22px;line-height:1.3;color:#16181a;font-weight:600">' +
-              esc(text.ueberschrift) +
-            '</h1>' +
             '<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#16181a">' + anrede + '</p>' +
-            '<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#16181a">' + esc(text.einleitung) + '</p>' +
-            '<p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#16181a">' +
-              '<strong>Ich melde mich innerhalb von 24 Stunden persönlich bei Ihnen zurück.</strong> ' +
-              'Bis dahin müssen Sie nichts weiter tun.' +
-            '</p>' +
-            (zusammenfassung
-              ? '<table cellpadding="0" cellspacing="0" style="background:#f4f0ea;border-radius:8px;padding:16px;margin:0 0 28px;width:100%">' +
-                  '<tr><td style="padding:16px">' +
-                    '<table cellpadding="0" cellspacing="0">' + zusammenfassung + '</table>' +
+            '<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#16181a">' + esc(einleitungSatz) + '</p>' +
+            (fakten
+              ? '<table cellpadding="0" cellspacing="0" style="background:#f4f0ea;border-radius:8px;margin:0 0 20px;width:100%">' +
+                  '<tr><td style="padding:14px 16px">' +
+                    '<table cellpadding="0" cellspacing="0">' + fakten + '</table>' +
                   '</td></tr>' +
                 '</table>'
               : '') +
+            '<p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#16181a">' + esc(text.versprechen) + '</p>' +
+            '<p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#16181a">' + esc(text.sicherheit) + '</p>' +
+            '<p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#16181a">' +
+              'Wenn Ihnen eine bestimmte Uhrzeit lieber ist oder oben etwas nicht stimmt, erreichen Sie mich ' +
+              'direkt unter <a href="mailto:becker@365-grundbesitz.de" style="color:' + ORANGE + '">becker@365-grundbesitz.de</a> ' +
+              'oder <a href="tel:+491727062000" style="color:' + ORANGE + '">0172 / 7062000</a>.' +
+            '</p>' +
           '</td></tr>' +
 
           '<tr><td style="padding:0 32px 32px;border-top:1px solid #eee;padding-top:24px">' +
             '<table cellpadding="0" cellspacing="0"><tr>' +
-              '<td style="padding-right:14px;vertical-align:top">' +
-                '<img src="' + SITE_URL + '/assets/img/leonie/leonie-portrait-136.webp" alt="" width="52" height="52" ' +
-                  'style="display:block;border-radius:50%;object-fit:cover">' +
+              '<td style="padding-right:16px;vertical-align:top">' +
+                '<img src="' + SITE_URL + '/assets/img/leonie/leonie-ganz-264.webp" alt="" width="64" height="85" ' +
+                  'style="display:block;border-radius:10px;object-fit:cover">' +
               '</td>' +
               '<td style="vertical-align:top">' +
                 '<p style="margin:0;font-size:14px;font-weight:600;color:#16181a">Leonie Becker</p>' +
@@ -150,15 +170,12 @@ function bestaetigungsMail(daten, typ, name) {
         '</table>' +
         '<p style="max-width:92%;width:560px;margin:20px auto 0;font-size:11px;line-height:1.6;color:#999;font-family:Arial,Helvetica,sans-serif">' +
           '365 Grundbesitz GmbH · Prinz-Friedrich-Karl-Str. 26 · 44135 Dortmund<br>' +
-          'Sie erhalten diese E-Mail, weil Sie ein Formular auf 365-grundbesitz.de abgeschickt haben.' +
+          'Diese E-Mail wurde automatisch versendet, weil Sie ein Formular auf 365-grundbesitz.de abgeschickt haben.' +
         '</p>' +
       '</td></tr>' +
     '</table>';
 
-  return {
-    betreff: 'Ihre Anfrage bei 365 Grundbesitz ist angekommen',
-    html: html
-  };
+  return { betreff: text.betreff, html: html };
 }
 
 async function senden(payload) {
