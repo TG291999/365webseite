@@ -24,7 +24,7 @@
    ========================================================================= */
 
 const ABSENDER = process.env.RESEND_FROM || 'Leonie Becker <becker@365-grundbesitz.de>';
-const EMPFAENGER = process.env.LEAD_TO_EMAIL || 'goebel@365-grundbesitz.de';
+const EMPFAENGER = process.env.LEAD_TO_EMAIL || 'becker@365-grundbesitz.de';
 const SITE_URL = 'https://365-grundbesitz.de';
 const ORANGE = '#D93F00';   // WCAG-taugliches Orange, wie im Rest der Website
 
