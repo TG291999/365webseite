@@ -895,7 +895,7 @@
                   : '<a class="btn btn--primary" href="' + bewertungZiel() + '" data-track="hero_cta_click">' +
                       'Immobilie bewerten lassen</a>') +
                 '<div class="objaction__person">' +
-                  '<img src="assets/img/leonie/leonie-portrait-136.webp" alt="" loading="lazy" decoding="async">' +
+                  '<img src="assets/img/leonie/leonie-ganz-132.webp" srcset="assets/img/leonie/leonie-ganz-132.webp 132w, assets/img/leonie/leonie-ganz-264.webp 264w" sizes="64px" alt="" loading="lazy" decoding="async">' +
                   '<span><b>' + esc(c.person || 'Leonie Becker') + '</b>' +
                     '<span>' + (aktuell ? 'Ihre Ansprechpartnerin für dieses Objekt' : 'Ihre Ansprechpartnerin') + '</span></span>' +
                 '</div>' +

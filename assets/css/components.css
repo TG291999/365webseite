@@ -1571,7 +1571,10 @@ body:has(.cta-bar.is-visible) { padding-bottom: 84px; }
   border-top: 1px solid var(--c-line);
   display: flex; align-items: center; gap: 0.9rem;
 }
-.objaction__person img { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; object-position: center 20%; flex: none; }
+/* Ganze Aufnahme statt engem Kopf-Ausschnitt — abgerundetes Rechteck
+   statt Kreis, weil ein Kreis bei einem 3:4-Ausschnitt nur die Mitte
+   zeigen wuerde und das Gesicht dabei zu klein oder abgeschnitten wirkt. */
+.objaction__person img { width: 64px; height: 85px; border-radius: 10px; object-fit: cover; flex: none; }
 .objaction__person b { display: block; font-size: var(--t-small); }
 .objaction__person span { font-size: var(--t-micro); color: var(--c-ink-3); }
 .objcontact { margin-top: 1rem; display: grid; gap: 0.15rem; }
